@@ -1,0 +1,55 @@
+Agent 1 — Data Cleaner
+Original shape: (4803, 24)
+
+LLM Cleaning Plan:
+Action Plan for Data Cleaning:
+
+1. Remove duplicate title columns:
+   - Columns title_x and title_y both exist with similar unique counts (~4800) but no explanation of distinction.
+   - Retain one title column to avoid redundancy and confusion.
+
+2. Deal with missing homepage data (64.36% missing):
+   - Since homepage is missing in majority of rows, consider dropping this column or imputing with "No homepage" if keeping.
+   - High missing rate indicates low utility.
+
+3. Handle missing tagline (17.57% missing):
+   - Tagline has considerable missing data; fill missing values with empty strings or "No tagline" to maintain text consistency.
+
+4. Address missing overview (0.06%) and release_date (0.02%), runtime (0.04%):
+   - These are few records with missing key metadata.
+   - For release_date, impute if possible or drop affected rows since date is crucial.
+   - For overview and runtime, impute with appropriate defaults or drop if analysis requires complete data.
+
+5. Parse object columns with complex data:
+   - Columns like genres, keywords, production_companies, production_countries, spoken_languages, cast, crew contain stringified lists or JSON-like text.
+   - Clean and convert these into structured format (e.g., lists/dictionaries) for easier analysis.
+
+6. Check for consistency in IDs:
+   - id and movie_id both exist with full coverage.
+   - Verify if they are duplicates; if so, retain one.
+
+7. Validate and convert release_date to datetime:
+   - Currently an object type; convert to datetime for time-based analysis.
+
+8. Normalize textual data:
+   - Lowercase or standardize text in original_language, status, and other categorical text columns.
+   
+Summary:
+- Drop or impute columns with high missingness (homepage, tagline).
+- Clean and unify duplicate columns (title_x/title_y, id/movie_id).
+- Parse complex object fields into structured formats.
+- Convert dates and normalize textual categorical columns.
+- Impute or remove the few missing entries in critical columns (overview, runtime, release_date).
+Created has_homepage from homepage column.
+Dropped columns: ['id', 'movie_id', 'homepage', 'title_y']
+Renamed title_x to title.
+Converted release_date to datetime.
+Imputed missing runtime using median: 103.0
+Filled missing original_language with Unknown.
+Filled missing status with Unknown.
+
+Metadata after cleaning:
+{'shape': (4803, 21), 'columns': ['budget', 'genres', 'keywords', 'original_language', 'original_title', 'overview', 'popularity', 'production_companies', 'production_countries', 'release_date', 'revenue', 'runtime', 'spoken_languages', 'status', 'tagline', 'title', 'vote_average', 'vote_count', 'cast', 'crew', 'has_homepage'], 'dtypes': {'budget': 'int64', 'genres': 'object', 'keywords': 'object', 'original_language': 'object', 'original_title': 'object', 'overview': 'object', 'popularity': 'float64', 'production_companies': 'object', 'production_countries': 'object', 'release_date': 'datetime64[ns]', 'revenue': 'int64', 'runtime': 'float64', 'spoken_languages': 'object', 'status': 'object', 'tagline': 'object', 'title': 'object', 'vote_average': 'float64', 'vote_count': 'int64', 'cast': 'object', 'crew': 'object', 'has_homepage': 'int64'}, 'null_counts': {'budget': 0, 'genres': 0, 'keywords': 0, 'original_language': 0, 'original_title': 0, 'overview': 3, 'popularity': 0, 'production_companies': 0, 'production_countries': 0, 'release_date': 1, 'revenue': 0, 'runtime': 0, 'spoken_languages': 0, 'status': 0, 'tagline': 844, 'title': 0, 'vote_average': 0, 'vote_count': 0, 'cast': 0, 'crew': 0, 'has_homepage': 0}, 'null_percentages': {'budget': 0.0, 'genres': 0.0, 'keywords': 0.0, 'original_language': 0.0, 'original_title': 0.0, 'overview': 0.06, 'popularity': 0.0, 'production_companies': 0.0, 'production_countries': 0.0, 'release_date': 0.02, 'revenue': 0.0, 'runtime': 0.0, 'spoken_languages': 0.0, 'status': 0.0, 'tagline': 17.57, 'title': 0.0, 'vote_average': 0.0, 'vote_count': 0.0, 'cast': 0.0, 'crew': 0.0, 'has_homepage': 0.0}, 'unique_counts': {'budget': 436, 'genres': 1175, 'keywords': 4222, 'original_language': 37, 'original_title': 4801, 'overview': 4800, 'popularity': 4802, 'production_companies': 3697, 'production_countries': 469, 'release_date': 3280, 'revenue': 3297, 'runtime': 156, 'spoken_languages': 544, 'status': 3, 'tagline': 3944, 'title': 4800, 'vote_average': 71, 'vote_count': 1609, 'cast': 4761, 'crew': 4776, 'has_homepage': 2}}
+
+Cleaned shape: (4803, 21)
+Saved clean data to outputs/clean_data.csv
