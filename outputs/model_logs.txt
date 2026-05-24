@@ -9,51 +9,49 @@ LLM generated this training code:
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, recall_score, f1_score
+from xgboost import XGBClassifier
 
 # Load data
-data_path = r"C:\Users\kiuadmin\OneDrive - Kutaisi International University\Desktop\LLM Assignment 2\outputs\engineered_data.csv"
-df = pd.read_csv(data_path)
-
-# Define features and target
-target_col = 'is_highly_rated'
-X = df.drop(columns=[target_col])
-y = df[target_col]
+df = pd.read_csv('outputs/engineered_data.csv')
+X = df.drop(columns=['is_highly_rated'])
+y = df['is_highly_rated']
 
 # Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, stratify=y)
+
+# Initialize model (baseline)
+model = XGBClassifier()
 
 # Train model
-model = XGBClassifier()
 model.fit(X_train, y_train)
 
 # Predict
 y_pred = model.predict(X_test)
 
-# Evaluate
-acc = accuracy_score(y_test, y_pred)
-rec = recall_score(y_test, y_pred)
+# Calculate metrics
+accuracy = accuracy_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
 f1 = f1_score(y_test, y_pred)
 
-print(f"accuracy={acc}")
-print(f"recall={rec}")
+# Print metrics
+print(f"accuracy={accuracy}")
+print(f"recall={recall}")
 print(f"f1={f1}")
 
 Executing generated code...
 
 STDOUT:
-accuracy=0.9469302809573361
-recall=0.4852941176470588
-f1=0.5641025641025641
+accuracy=0.9492089925062448
+recall=0.39285714285714285
+f1=0.5196850393700787
 
 STDERR:
 
 
 LLM Decision:
 DECISION: CONTINUE
-
-F1 and recall are relatively low, indicating room for improvement.
+Reason: Recall and F1 are weak and another attempt remains.
 
 ================ ATTEMPT 2 ================
 
@@ -64,26 +62,33 @@ from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 
-# Load dataset
-data_path = r"C:\Users\kiuadmin\OneDrive - Kutaisi International University\Desktop\LLM Assignment 2\outputs\engineered_data.csv"
-df = pd.read_csv(data_path)
-
-# Define features and target
-target_col = 'is_highly_rated'
-X = df.drop(columns=[target_col])
-y = df[target_col]
+# Load data
+data = pd.read_csv('outputs/engineered_data.csv')
+X = data.drop(columns=['is_highly_rated'])
+y = data['is_highly_rated']
 
 # Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, stratify=y)
 
-# Initialize and train model with adjusted hyperparameters
-model = XGBClassifier(max_depth=5, n_estimators=200, learning_rate=0.05, random_state=42, eval_metric='logloss')
+# Define model with adjusted hyperparameters to improve recall
+model = XGBClassifier(
+    n_estimators=200,
+    max_depth=5,
+    learning_rate=0.1,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    scale_pos_weight=sum(y == 0) / sum(y == 1),
+    
+    eval_metric='logloss'
+)
+
+# Train model
 model.fit(X_train, y_train)
 
-# Predictions
+# Predict
 y_pred = model.predict(X_test)
 
-# Metrics
+# Evaluate
 accuracy = accuracy_score(y_test, y_pred)
 recall = recall_score(y_test, y_pred)
 f1 = f1_score(y_test, y_pred)
@@ -95,17 +100,16 @@ print(f"f1={f1}")
 Executing generated code...
 
 STDOUT:
-accuracy=0.951092611862643
-recall=0.44776119402985076
-f1=0.5607476635514018
+accuracy=0.9417152373022482
+recall=0.47619047619047616
+f1=0.5333333333333333
 
 STDERR:
 
 
 LLM Decision:
 DECISION: CONTINUE
-
-Recall and F1 are still quite low, so another attempt may improve performance.
+Reason: Recall and F1 are weak and another attempt remains.
 
 ================ ATTEMPT 3 ================
 
@@ -113,32 +117,33 @@ LLM generated this training code:
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, recall_score, f1_score
+from xgboost import XGBClassifier
 
-# Load dataset
-data_path = r"C:\Users\kiuadmin\OneDrive - Kutaisi International University\Desktop\LLM Assignment 2\outputs\engineered_data.csv"
-df = pd.read_csv(data_path)
-
-# Define target and features
-target = 'is_highly_rated'
-X = df.drop(columns=[target])
-y = df[target]
+# Load data
+data = pd.read_csv('outputs/engineered_data.csv')
+X = data.drop(columns=['is_highly_rated'])
+y = data['is_highly_rated']
 
 # Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, stratify=y, test_size=0.25)
 
-# Initialize the model with adjusted hyperparameters to improve recall and f1
+# Adjust hyperparameters based on previous results (Attempt 2)
+# Previous recall was low (~0.48), so increase scale_pos_weight and adjust learning_rate and max_depth
+scale_pos_weight = (y == 0).sum() / (y == 1).sum()
 model = XGBClassifier(
-    max_depth=5,
     n_estimators=150,
+    max_depth=6,
     learning_rate=0.05,
-    scale_pos_weight=2,
-    eval_metric='logloss',
-    random_state=42
+    subsample=0.8,
+    colsample_bytree=0.8,
+    scale_pos_weight=scale_pos_weight,
+    random_state=42,
+    
+    eval_metric='logloss'
 )
 
-# Train the model
+# Train model
 model.fit(X_train, y_train)
 
 # Predict and evaluate
@@ -154,16 +159,15 @@ print(f"f1={f1}")
 Executing generated code...
 
 STDOUT:
-accuracy=0.9521331945889698
-recall=0.5373134328358209
-f1=0.6101694915254238
+accuracy=0.9375520399666945
+recall=0.5357142857142857
+f1=0.5454545454545454
 
 STDERR:
 
 
 LLM Decision:
 DECISION: STOP
-
-It is the maximum allowed attempt number.
+Reason: F1 and recall are weak, but this is the final allowed attempt.
 
 Final decision: stopping model training loop.

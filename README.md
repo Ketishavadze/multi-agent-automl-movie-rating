@@ -2,18 +2,17 @@
 
 ## Overview
 
-This project implements a three-agent LLM AutoML pipeline for movie rating classification.
-The system predicts whether a movie is **highly rated** using TMDB-style movie metadata.
+This project implements a three-agent LLM AutoML pipeline for movie rating classification. The system predicts whether a movie is highly rated using TMDB-style movie metadata.
 
 A movie is labeled as highly rated if:
 
-```python
+```text
 is_highly_rated = 1 if vote_average >= 7.5 else 0
 ```
 
-The project follows a sequential multi-agent workflow:
+The pipeline follows a sequential handoff workflow:
 
-```
+```text
 Raw Movie Dataset
       ↓
 Agent 1: Data Cleaner
@@ -26,164 +25,141 @@ engineered_data.csv + feature_report.txt
       ↓
 Agent 3: Model Trainer
       ↓
-XGBoost training loop + model_logs.txt
+XGBoost feedback loop + model_logs.txt
       ↓
 final_report.md
 ```
 
-The goal is not only to train a model, but to show how LLM agents can make data science decisions, generate code, evaluate results, and improve the model through feedback.
+The goal is not only to train a model, but also to demonstrate how LLM agents can inspect data, make data-science decisions, generate executable code, evaluate results, and improve a model through feedback.
 
 ---
 
 ## Project Topic
 
-**Predicting Whether a Movie Becomes Highly Rated**
+**Predicting Whether a Movie Is Highly Rated**
 
-The system uses metadata such as:
+The system uses movie metadata such as:
 
 - `budget`
 - `revenue`
 - `runtime`
 - `popularity`
-- `vote count`
-- `release date`
+- `vote_count`
+- `release_date`
 - `genres`
 - `keywords`
-- `production companies`
-- `production countries`
-- `spoken languages`
+- `production_companies`
+- `production_countries`
+- `spoken_languages`
 - `cast`
 - `crew`
-- `director information`
-- `main actor information`
+- director information
+- main actor information
 
 The target column is `is_highly_rated`, where:
 
 - `1` = `vote_average >= 7.5`
 - `0` = `vote_average < 7.5`
 
-> The original `vote_average` column is removed before training to avoid target leakage.
+The original `vote_average` column is removed before model training to avoid direct target leakage.
 
 ---
 
-## Agents
+## Agent Architecture
 
-### Agent 1: Data Cleaner
+### Agent 1: Data Cleaner — “The Auditor”
 
 The Data Cleaner inspects the raw merged movie dataset and prepares it for feature engineering.
 
-**Main responsibilities:**
+Main responsibilities:
 
-- Inspect dataset shape, data types, null counts, and unique counts
-- Identify missing values
-- Detect identifier columns
-- Convert `release_date` to datetime
-- Impute missing `runtime` values
-- Create `has_homepage`
-- Remove duplicated or unusable columns
+- inspect dataset shape, data types, null counts, null percentages, and unique counts;
+- identify missing values, duplicated merge columns, identifier columns, and high-cardinality columns;
+- request an LLM-generated cleaning plan in structured JSON;
+- apply the parsed cleaning plan using controlled tools;
+- save `outputs/clean_data.csv`;
+- write `outputs/cleaning_report.txt`.
 
-**Example decisions:**
+Example cleaning decisions:
 
-- Dropped `id` and `movie_id` because they are identifiers
-- Dropped `homepage` after extracting `has_homepage`
-- Renamed `title_x` to `title`
-- Converted `release_date` to datetime
-- Imputed missing `runtime` using the median
+- create `has_homepage` before removing the raw `homepage` URL column;
+- drop pure identifiers such as `id` or `movie_id`;
+- rename duplicated merge columns such as `title_x`;
+- convert `release_date` to a datetime-compatible column;
+- impute missing numeric values using an LLM-selected strategy.
 
-**Output:**
+### Agent 2: Feature Engineer — “The Architect”
 
-```
-outputs/clean_data.csv
-outputs/cleaning_report.txt
-```
+The Feature Engineer receives `clean_data.csv` and Agent 1's cleaning report. It creates movie-specific semantic features and performs feature selection.
 
----
+Created feature groups include:
 
-### Agent 2: Feature Engineer
-
-The Feature Engineer receives the cleaned dataset and creates semantic movie-specific features.
-
-**Created features include:**
-
-| Feature | Description |
+| Feature group | Examples |
 |---|---|
-| `release_year` | Year of release |
-| `release_month` | Month of release |
-| `movie_age` | Age of movie from current year |
-| `release_season` | Season derived from release month |
-| `main_genre` | Primary genre |
-| `genre_count` | Number of genres |
-| `keyword_count` | Number of keywords |
-| `company_count` | Number of production companies |
-| `country_count` | Number of production countries |
-| `spoken_language_count` | Number of spoken languages |
-| `director_movie_count` | Director's total movie count |
-| `main_actor_movie_count` | Main actor's total movie count |
-| `cast_count` | Cast size |
-| `crew_count` | Crew size |
-| `profit` | Revenue minus budget |
-| `profit_ratio` | Profit relative to budget |
-| `log_budget` | Log-transformed budget |
-| `log_revenue` | Log-transformed revenue |
-| `has_budget` | Whether budget data exists |
-| `has_revenue` | Whether revenue data exists |
+| Release-date features | `release_year`, `release_month`, `movie_age`, `release_season` |
+| Genre features | `main_genre`, `genre_count` |
+| JSON-count features | `keyword_count`, `company_count`, `country_count`, `spoken_language_count` |
+| Cast/crew features | `director_movie_count`, `main_actor_movie_count`, `cast_count`, `crew_count` |
+| Financial features | `has_budget`, `has_revenue`, `profit`, `profit_ratio` |
+| Log transforms | `log_budget`, `log_revenue`, `log_runtime`, `log_popularity`, `log_vote_count` |
 
-**Removed columns (raw text, JSON-like, or leakage):**
+To avoid leakage or invalid model inputs, Agent 2 removes raw text, raw JSON-like columns, and the original `vote_average` column after creating the target.
 
-- `vote_average`, `genres`, `keywords`, `cast`, `crew`
-- `overview`, `tagline`, `title`, `original_title`, `release_date`
+Agent 2 also performs feature selection by:
 
-**Output:**
+1. removing highly correlated redundant features;
+2. ranking numeric features by absolute correlation with the target;
+3. keeping the top selected predictors requested by the LLM feature plan.
 
-```
+Outputs:
+
+```text
 outputs/engineered_data.csv
 outputs/feature_report.txt
 ```
 
----
+### Agent 3: Model Trainer — “The Coder”
 
-### Agent 3: Model Trainer
+The Model Trainer uses the LLM to generate executable Python code for XGBoost training.
 
-The Model Trainer uses an LLM to generate executable Python code for XGBoost training.
+Feedback loop:
 
-**Feedback loop:**
+1. Generate baseline XGBoost code.
+2. Execute the generated code.
+3. Read Accuracy, Recall, and F1.
+4. Decide whether the result is good enough.
+5. If not, generate new code with adjusted hyperparameters.
+6. Stop when performance is acceptable or when the maximum number of attempts is reached.
 
-1. Generate baseline XGBoost code
-2. Execute the generated code
-3. Read accuracy, recall, and F1 score
-4. Decide whether the model is good enough
-5. If not, generate improved code with adjusted hyperparameters
-6. Stop after a successful result or after the maximum number of attempts
+Outputs:
 
-**Output:**
-
-```
+```text
 outputs/model_logs.txt
 outputs/final_report.md
 ```
 
 ---
 
-## Model Results
+## Latest Model Results
 
-The model was trained to classify movies as highly rated or not highly rated.
+The most recent run used three XGBoost attempts. Attempt 3 produced the best balance of recall and F1.
 
 | Attempt | Accuracy | Recall | F1 Score | Decision |
-|---|---|---|---|---|
+|---:|---:|---:|---:|---|
 | 1 | 0.9469 | 0.4853 | 0.5641 | Continue |
-| 2 | **0.9521** | **0.5373** | **0.6102** | Continue |
-| 3 | 0.9500 | 0.5224 | 0.5932 | Stop |
+| 2 | 0.9542 | 0.5000 | 0.6071 | Continue |
+| 3 | 0.9521 | 0.6029 | 0.6406 | Stop |
 
-**Best result: Attempt 2** — highest accuracy, recall, and F1 score.
+**Best result:** Attempt 3.
 
-Although accuracy is high, recall is lower because highly rated movies are likely a minority class. The model is strong at classifying most movies overall, but still misses some truly highly rated movies.
+Attempt 3 has slightly lower accuracy than Attempt 2, but it has much better recall and the best F1 score. This matters because highly rated movies are the positive class, and recall measures how many truly highly rated movies the model successfully finds.
 
 ---
 
 ## Project Structure
 
-```
-multi-agent-movie-automl/
+```text
+multi-agent-automl-movie-rating/
 │
 ├── agents/
 │   ├── data_cleaner.py
@@ -223,8 +199,8 @@ multi-agent-movie-automl/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/multi-agent-movie-automl.git
-cd multi-agent-movie-automl
+git clone https://github.com/Ketishavadze/multi-agent-automl-movie-rating.git
+cd multi-agent-automl-movie-rating
 ```
 
 ### 2. Create a virtual environment
@@ -251,13 +227,13 @@ pip install -r requirements.txt
 
 ### 4. Add your OpenAI API key
 
-Create a `.env` file:
+Create a `.env` file in the project root:
 
-```env
+```text
 OPENAI_API_KEY=your_api_key_here
 ```
 
-> **Do not commit `.env` to GitHub.**
+Do not commit `.env` to GitHub.
 
 ---
 
@@ -269,44 +245,33 @@ Run the full pipeline:
 python main.py
 ```
 
-This will run all three agents sequentially:
+This runs all three agents sequentially:
 
-1. **Agent 1:** Data Cleaner
-2. **Agent 2:** Feature Engineer
-3. **Agent 3:** Model Trainer
+1. Agent 1: Data Cleaner
+2. Agent 2: Feature Engineer
+3. Agent 3: Model Trainer
 
-After execution, all generated files will appear in the `outputs/` folder.
-
----
-
-## Requirements
-
-```
-pandas
-numpy
-scikit-learn
-xgboost
-openai
-python-dotenv
-```
-
----
-
-## Important Notes
-
-- The LLM does **not** directly predict movie ratings
-- LLM agents make decisions, generate plans, and write training code
-- The actual prediction is done by the **XGBoost model**
-- The model predicts a binary label: **highly rated** or **not highly rated**
-- `vote_average` is removed before training to prevent target leakage
-- The feedback loop in Agent 3 demonstrates iterative model improvement
+After execution, generated files appear in the `outputs/` folder.
 
 ---
 
 ## Assignment Checklist
 
-- [x] Agent 1 cleans the data and passes it to Agent 2
-- [x] Agent 2 creates new features using movie-specific logic
-- [x] Agent 3 generates and executes Python code
-- [x] Agent 3 reacts to model results through a feedback loop
-- [x] Final logs and reports are saved in the `outputs/` folder
+- [x] Agent 1 cleans the data and passes `clean_data.csv` plus a structured cleaning report to Agent 2.
+- [x] Agent 2 creates new movie-specific features using domain logic.
+- [x] Agent 2 performs feature selection to reduce redundancy.
+- [x] Agent 3 generates executable Python code.
+- [x] Agent 3 executes the code and reads model metrics.
+- [x] Agent 3 reacts to model results through a feedback loop.
+- [x] The system saves execution logs and a final Markdown report.
+
+---
+
+## Important Notes
+
+- The LLM does not directly predict movie ratings.
+- The LLM agents make cleaning, feature-engineering, and modeling decisions.
+- XGBoost performs the final classification task.
+- The model predicts a binary label: highly rated or not highly rated.
+- `vote_average` is removed before training to avoid direct target leakage.
+- Recall and F1 are emphasized because the positive class is smaller than the negative class.

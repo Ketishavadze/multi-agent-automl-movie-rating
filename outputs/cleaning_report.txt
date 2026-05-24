@@ -1,55 +1,266 @@
 Agent 1 — Data Cleaner
+Goal: audit the raw dataset and prepare clean_data.csv for Agent 2.
 Original shape: (4803, 24)
 
 LLM Cleaning Plan:
-Action Plan for Data Cleaning:
+```json
+{
+  "reason_summary": "Drop pure IDs and duplicate merge columns; create missing indicators for columns with notable missingness; convert release_date to datetime; impute numeric missing with median; impute categorical missing with unknown/mode.",
+  "create_missing_indicators": ["homepage", "overview", "release_date", "runtime", "tagline"],
+  "rename_columns": {
+    "title_x": "title",
+    "movie_id": "movie_id",
+    "title_y": "title_duplicate"
+  },
+  "datetime_columns": ["release_date"],
+  "missing_value_rules": [
+    {
+      "column": "overview",
+      "strategy": "unknown",
+      "reason": "Minimal missingness and text, replacing with unknown to preserve data"
+    },
+    {
+      "column": "runtime",
+      "strategy": "median",
+      "reason": "Small number of missing numerical values, median is robust for skewed data"
+    },
+    {
+      "column": "tagline",
+      "strategy": "unknown",
+      "reason": "Substantial missingness and text data, using unknown to preserve missing info"
+    },
+    {
+      "column": "release_date",
+      "strategy": "mode",
+      "reason": "Only one missing date, filling with mode date to keep consistency"
+    },
+    {
+      "column": "homepage",
+      "strategy": "unknown",
+      "reason": "High missingness in URL column, treat missing as unknown category"
+    }
+  ],
+  "drop_columns": ["id", "movie_id", "title_y"]
+}
+```
 
-1. Remove duplicate title columns:
-   - Columns title_x and title_y both exist with similar unique counts (~4800) but no explanation of distinction.
-   - Retain one title column to avoid redundancy and confusion.
-
-2. Deal with missing homepage data (64.36% missing):
-   - Since homepage is missing in majority of rows, consider dropping this column or imputing with "No homepage" if keeping.
-   - High missing rate indicates low utility.
-
-3. Handle missing tagline (17.57% missing):
-   - Tagline has considerable missing data; fill missing values with empty strings or "No tagline" to maintain text consistency.
-
-4. Address missing overview (0.06%) and release_date (0.02%), runtime (0.04%):
-   - These are few records with missing key metadata.
-   - For release_date, impute if possible or drop affected rows since date is crucial.
-   - For overview and runtime, impute with appropriate defaults or drop if analysis requires complete data.
-
-5. Parse object columns with complex data:
-   - Columns like genres, keywords, production_companies, production_countries, spoken_languages, cast, crew contain stringified lists or JSON-like text.
-   - Clean and convert these into structured format (e.g., lists/dictionaries) for easier analysis.
-
-6. Check for consistency in IDs:
-   - id and movie_id both exist with full coverage.
-   - Verify if they are duplicates; if so, retain one.
-
-7. Validate and convert release_date to datetime:
-   - Currently an object type; convert to datetime for time-based analysis.
-
-8. Normalize textual data:
-   - Lowercase or standardize text in original_language, status, and other categorical text columns.
-   
-Summary:
-- Drop or impute columns with high missingness (homepage, tagline).
-- Clean and unify duplicate columns (title_x/title_y, id/movie_id).
-- Parse complex object fields into structured formats.
-- Convert dates and normalize textual categorical columns.
-- Impute or remove the few missing entries in critical columns (overview, runtime, release_date).
-Created has_homepage from homepage column.
-Dropped columns: ['id', 'movie_id', 'homepage', 'title_y']
-Renamed title_x to title.
+Parsed Cleaning Plan Applied:
+{
+  "reason_summary": "Drop pure IDs and duplicate merge columns; create missing indicators for columns with notable missingness; convert release_date to datetime; impute numeric missing with median; impute categorical missing with unknown/mode.",
+  "create_missing_indicators": [
+    "homepage",
+    "overview",
+    "release_date",
+    "runtime",
+    "tagline"
+  ],
+  "rename_columns": {
+    "title_x": "title",
+    "movie_id": "movie_id",
+    "title_y": "title_duplicate"
+  },
+  "datetime_columns": [
+    "release_date"
+  ],
+  "missing_value_rules": [
+    {
+      "column": "overview",
+      "strategy": "unknown",
+      "reason": "Minimal missingness and text, replacing with unknown to preserve data"
+    },
+    {
+      "column": "runtime",
+      "strategy": "median",
+      "reason": "Small number of missing numerical values, median is robust for skewed data"
+    },
+    {
+      "column": "tagline",
+      "strategy": "unknown",
+      "reason": "Substantial missingness and text data, using unknown to preserve missing info"
+    },
+    {
+      "column": "release_date",
+      "strategy": "mode",
+      "reason": "Only one missing date, filling with mode date to keep consistency"
+    },
+    {
+      "column": "homepage",
+      "strategy": "unknown",
+      "reason": "High missingness in URL column, treat missing as unknown category"
+    }
+  ],
+  "drop_columns": [
+    "id",
+    "movie_id",
+    "title_y"
+  ]
+}
+Created has_homepage from missingness in homepage.
+Created has_overview from missingness in overview.
+Created has_release_date from missingness in release_date.
+Created has_runtime from missingness in runtime.
+Created has_tagline from missingness in tagline.
+Renamed columns: {'title_x': 'title', 'movie_id': 'movie_id', 'title_y': 'title_duplicate'}
 Converted release_date to datetime.
-Imputed missing runtime using median: 103.0
-Filled missing original_language with Unknown.
-Filled missing status with Unknown.
+Imputed overview using unknown; nulls 3 → 0. Reason: Minimal missingness and text, replacing with unknown to preserve data
+Imputed runtime using median; nulls 2 → 0. Reason: Small number of missing numerical values, median is robust for skewed data
+Imputed tagline using unknown; nulls 844 → 0. Reason: Substantial missingness and text data, using unknown to preserve missing info
+Imputed release_date using mode; nulls 1 → 0. Reason: Only one missing date, filling with mode date to keep consistency
+Imputed homepage using unknown; nulls 3091 → 0. Reason: High missingness in URL column, treat missing as unknown category
+Dropped columns selected by the LLM: ['id', 'movie_id']
 
 Metadata after cleaning:
-{'shape': (4803, 21), 'columns': ['budget', 'genres', 'keywords', 'original_language', 'original_title', 'overview', 'popularity', 'production_companies', 'production_countries', 'release_date', 'revenue', 'runtime', 'spoken_languages', 'status', 'tagline', 'title', 'vote_average', 'vote_count', 'cast', 'crew', 'has_homepage'], 'dtypes': {'budget': 'int64', 'genres': 'object', 'keywords': 'object', 'original_language': 'object', 'original_title': 'object', 'overview': 'object', 'popularity': 'float64', 'production_companies': 'object', 'production_countries': 'object', 'release_date': 'datetime64[ns]', 'revenue': 'int64', 'runtime': 'float64', 'spoken_languages': 'object', 'status': 'object', 'tagline': 'object', 'title': 'object', 'vote_average': 'float64', 'vote_count': 'int64', 'cast': 'object', 'crew': 'object', 'has_homepage': 'int64'}, 'null_counts': {'budget': 0, 'genres': 0, 'keywords': 0, 'original_language': 0, 'original_title': 0, 'overview': 3, 'popularity': 0, 'production_companies': 0, 'production_countries': 0, 'release_date': 1, 'revenue': 0, 'runtime': 0, 'spoken_languages': 0, 'status': 0, 'tagline': 844, 'title': 0, 'vote_average': 0, 'vote_count': 0, 'cast': 0, 'crew': 0, 'has_homepage': 0}, 'null_percentages': {'budget': 0.0, 'genres': 0.0, 'keywords': 0.0, 'original_language': 0.0, 'original_title': 0.0, 'overview': 0.06, 'popularity': 0.0, 'production_companies': 0.0, 'production_countries': 0.0, 'release_date': 0.02, 'revenue': 0.0, 'runtime': 0.0, 'spoken_languages': 0.0, 'status': 0.0, 'tagline': 17.57, 'title': 0.0, 'vote_average': 0.0, 'vote_count': 0.0, 'cast': 0.0, 'crew': 0.0, 'has_homepage': 0.0}, 'unique_counts': {'budget': 436, 'genres': 1175, 'keywords': 4222, 'original_language': 37, 'original_title': 4801, 'overview': 4800, 'popularity': 4802, 'production_companies': 3697, 'production_countries': 469, 'release_date': 3280, 'revenue': 3297, 'runtime': 156, 'spoken_languages': 544, 'status': 3, 'tagline': 3944, 'title': 4800, 'vote_average': 71, 'vote_count': 1609, 'cast': 4761, 'crew': 4776, 'has_homepage': 2}}
+{
+  "shape": [
+    4803,
+    27
+  ],
+  "columns": [
+    "budget",
+    "genres",
+    "homepage",
+    "keywords",
+    "original_language",
+    "original_title",
+    "overview",
+    "popularity",
+    "production_companies",
+    "production_countries",
+    "release_date",
+    "revenue",
+    "runtime",
+    "spoken_languages",
+    "status",
+    "tagline",
+    "title",
+    "vote_average",
+    "vote_count",
+    "title_duplicate",
+    "cast",
+    "crew",
+    "has_homepage",
+    "has_overview",
+    "has_release_date",
+    "has_runtime",
+    "has_tagline"
+  ],
+  "dtypes": {
+    "budget": "int64",
+    "genres": "object",
+    "homepage": "object",
+    "keywords": "object",
+    "original_language": "object",
+    "original_title": "object",
+    "overview": "object",
+    "popularity": "float64",
+    "production_companies": "object",
+    "production_countries": "object",
+    "release_date": "datetime64[ns]",
+    "revenue": "int64",
+    "runtime": "float64",
+    "spoken_languages": "object",
+    "status": "object",
+    "tagline": "object",
+    "title": "object",
+    "vote_average": "float64",
+    "vote_count": "int64",
+    "title_duplicate": "object",
+    "cast": "object",
+    "crew": "object",
+    "has_homepage": "int64",
+    "has_overview": "int64",
+    "has_release_date": "int64",
+    "has_runtime": "int64",
+    "has_tagline": "int64"
+  },
+  "null_counts": {
+    "budget": 0,
+    "genres": 0,
+    "homepage": 0,
+    "keywords": 0,
+    "original_language": 0,
+    "original_title": 0,
+    "overview": 0,
+    "popularity": 0,
+    "production_companies": 0,
+    "production_countries": 0,
+    "release_date": 0,
+    "revenue": 0,
+    "runtime": 0,
+    "spoken_languages": 0,
+    "status": 0,
+    "tagline": 0,
+    "title": 0,
+    "vote_average": 0,
+    "vote_count": 0,
+    "title_duplicate": 0,
+    "cast": 0,
+    "crew": 0,
+    "has_homepage": 0,
+    "has_overview": 0,
+    "has_release_date": 0,
+    "has_runtime": 0,
+    "has_tagline": 0
+  },
+  "null_percentages": {
+    "budget": 0.0,
+    "genres": 0.0,
+    "homepage": 0.0,
+    "keywords": 0.0,
+    "original_language": 0.0,
+    "original_title": 0.0,
+    "overview": 0.0,
+    "popularity": 0.0,
+    "production_companies": 0.0,
+    "production_countries": 0.0,
+    "release_date": 0.0,
+    "revenue": 0.0,
+    "runtime": 0.0,
+    "spoken_languages": 0.0,
+    "status": 0.0,
+    "tagline": 0.0,
+    "title": 0.0,
+    "vote_average": 0.0,
+    "vote_count": 0.0,
+    "title_duplicate": 0.0,
+    "cast": 0.0,
+    "crew": 0.0,
+    "has_homepage": 0.0,
+    "has_overview": 0.0,
+    "has_release_date": 0.0,
+    "has_runtime": 0.0,
+    "has_tagline": 0.0
+  },
+  "unique_counts": {
+    "budget": 436,
+    "genres": 1175,
+    "homepage": 1692,
+    "keywords": 4222,
+    "original_language": 37,
+    "original_title": 4801,
+    "overview": 4801,
+    "popularity": 4802,
+    "production_companies": 3697,
+    "production_countries": 469,
+    "release_date": 3280,
+    "revenue": 3297,
+    "runtime": 156,
+    "spoken_languages": 544,
+    "status": 3,
+    "tagline": 3945,
+    "title": 4800,
+    "vote_average": 71,
+    "vote_count": 1609,
+    "title_duplicate": 4800,
+    "cast": 4761,
+    "crew": 4776,
+    "has_homepage": 2,
+    "has_overview": 2,
+    "has_release_date": 2,
+    "has_runtime": 2,
+    "has_tagline": 2
+  }
+}
 
-Cleaned shape: (4803, 21)
+Cleaned shape: (4803, 27)
 Saved clean data to outputs/clean_data.csv

@@ -1,68 +1,254 @@
 Agent 2 — Feature Engineer
-Input shape: (4803, 21)
+Goal: create semantic movie features and select the most relevant predictors.
+Input shape: (4803, 27)
 
 LLM Feature Engineering Plan:
-Feature Engineering Strategy:
+{
+  "reason_summary": "Extract meaningful semantic features from JSON columns, decompose release_date, encode categorical variables like original_language and status, create count features for cast and crew, and engineer financial ratios and log transformations. Remove raw text and JSON columns to avoid leakage and overfitting. Vote_average is used only to create the target label and then dropped. Select top 40 features after removing highly correlated ones to reduce redundancy.",
+  "target_threshold": 7.5,
+  "feature_operations": [
+    "release_date_parts",
+    "json_counts",
+    "genre_main_category",
+    "cast_crew_counts",
+    "financial_ratios",
+    "log_transforms"
+  ],
+  "categorical_columns_to_encode": [
+    "original_language",
+    "status"
+  ],
+  "drop_columns": [
+    "vote_average",
+    "genres",
+    "homepage",
+    "keywords",
+    "original_title",
+    "overview",
+    "production_companies",
+    "production_countries",
+    "spoken_languages",
+    "tagline",
+    "title",
+    "title_duplicate",
+    "cast",
+    "crew"
+  ],
+  "correlation_threshold": 0.95,
+  "top_k_features": 40
+}
 
-1. Release Date Features:
-- Extract year, month, and day-of-week from release_date. Year can capture trends over time. Month and day-of-week may reveal seasonality patterns in ratings (e.g., summer blockbusters).
-- Create a feature for movie age relative to dataset max year, approximating timeliness.
-
-2. Genre Features:
-- One-hot encode or multi-label binarize genres (which are often multi-valued). Genre types strongly influence movie reception, so these are informative.
-
-3. Director and Cast Features:
-- From crew (usually JSON or dict), extract the director's name and create a feature counting number of well-known directors based on frequency or external popularity scores.
-- From cast, extract main actors (e.g. top 3 billed) and create aggregate popularity or experience proxy features (e.g., average prior movie votes if available, or actor presence indicators). Star power and director reputation affect ratings.
-
-4. Financial Features:
-- Use budget and revenue directly. Normalize via log transformation to reduce skew.
-- Create profit = revenue - budget and profit margin features to capture financial success.
-- These proxies may indirectly reflect movie quality or scale.
-
-5. Popularity and Vote Features:
-- Include popularity and vote_count as numeric features because they precede vote_average and indicate audience interest but NOT vote_average itself to avoid leakage.
-- High vote counts can indicate wider popularity or marketing reach.
-
-6. Language and Production Metadata:
-- One-hot encode original_language to reflect market and possibly quality.
-- Encode production_countries and production_companies as categorical - either top N frequent categories with others grouped as "other".
-- Feature has_homepage as a binary indicator of marketing presence.
-
-7. Runtime and Status:
-- Include runtime as numeric feature since movie length might affect ratings.
-- Status is categorical (Released, etc.) and can indicate availability, filtering out unreleased.
-
-8. Textual / Keywords / Overview / Tagline:
-- Due to high cardinality and missing data, consider either discarding or applying dimensionality reduction (e.g., topic modeling, embeddings) if computational resources allow.
-- These are less straightforward but may add semantic information.
-
-Columns to Remove Before Training:
-- vote_average (target leakage)
-- original_title and title (unique identifiers that don't provide predictive signal)
-- overview, tagline (optional depending on modeling approach; likely noisy and sparse)
-- keywords (too high cardinality; may introduce noise unless properly encoded)
-- crew and cast raw columns (use engineered features instead)
-
-Summary:
-Focus on structured, informative features derived from budget/revenue, genre, release timing, cast/director popularity proxies, and language/production metadata. Avoid text-heavy and unique ID columns to reduce noise. Crucially, exclude vote_average to prevent target leakage but keep vote_count and popularity as reflective audience interest metrics. This approach balances domain knowledge and modeling practicality focused on predicting whether a movie is highly rated.
+Parsed Feature Plan Applied:
+{
+  "reason_summary": "Extract meaningful semantic features from JSON columns, decompose release_date, encode categorical variables like original_language and status, create count features for cast and crew, and engineer financial ratios and log transformations. Remove raw text and JSON columns to avoid leakage and overfitting. Vote_average is used only to create the target label and then dropped. Select top 40 features after removing highly correlated ones to reduce redundancy.",
+  "target_threshold": 7.5,
+  "feature_operations": [
+    "release_date_parts",
+    "json_counts",
+    "genre_main_category",
+    "cast_crew_counts",
+    "financial_ratios",
+    "log_transforms"
+  ],
+  "categorical_columns_to_encode": [
+    "original_language",
+    "status"
+  ],
+  "drop_columns": [
+    "vote_average",
+    "genres",
+    "homepage",
+    "keywords",
+    "original_title",
+    "overview",
+    "production_companies",
+    "production_countries",
+    "spoken_languages",
+    "tagline",
+    "title",
+    "title_duplicate",
+    "cast",
+    "crew"
+  ],
+  "correlation_threshold": 0.95,
+  "top_k_features": 40
+}
 
 Created target is_highly_rated using vote_average >= 7.5.
-Extracted release_year, release_month, movie_age, and release_season from release_date.
-Extracted main_genre and genre_count from genres.
+Created release_year, release_month, movie_age, and release_season from release_date.
+Created main_genre from genres.
+Created genre_count from genres.
 Created keyword_count from keywords.
 Created company_count from production_companies.
 Created country_count from production_countries.
 Created spoken_language_count from spoken_languages.
-Extracted director_name, crew_count, and director_movie_count from crew.
-Extracted main_actor, cast_count, and main_actor_movie_count from cast.
-Created has_budget, has_revenue, profit, profit_ratio, log_budget, and log_revenue.
-Dropped high-cardinality name columns after extracting frequency features: ['director_name', 'main_actor']
-Dropped raw/leakage columns: ['vote_average', 'genres', 'keywords', 'production_companies', 'production_countries', 'spoken_languages', 'cast', 'crew', 'overview', 'tagline', 'title', 'original_title', 'release_date', 'status']
-One-hot encoded categorical columns: ['original_language', 'release_season', 'main_genre']
+Created director_name, crew_count, and director_movie_count from crew.
+Created main_actor, cast_count, and main_actor_movie_count from cast.
+Created has_budget, has_revenue, profit, and profit_ratio.
+Created log_budget.
+Created log_revenue.
+Created log_runtime.
+Created log_popularity.
+Created log_vote_count.
+Dropped leakage/raw columns: ['genres', 'original_title', 'production_countries', 'tagline', 'vote_average', 'spoken_languages', 'title', 'title_duplicate', 'keywords', 'overview', 'cast', 'homepage', 'production_companies', 'crew']
+One-hot encoded LLM-selected low-cardinality categorical columns: ['status']
+Dropped leftover non-numeric columns after feature extraction: ['original_language', 'release_season', 'main_genre', 'director_name', 'main_actor']
+Removed redundant highly correlated features at threshold 0.95: ['log_vote_count', 'movie_age', 'has_revenue', 'revenue', 'log_budget']
+Selected top 26 predictive features by absolute target correlation. Columns reduced from 35 to 27.
+Top selected features: ['vote_count', 'popularity', 'runtime', 'log_popularity', 'release_year', 'profit', 'cast_count', 'keyword_count', 'director_movie_count', 'crew_count', 'log_revenue', 'log_runtime', 'has_homepage', 'profit_ratio', 'has_budget', 'spoken_language_count', 'release_month', 'genre_count', 'company_count', 'main_actor_movie_count']
 
 Metadata after feature engineering:
-{'shape': (4803, 84), 'columns': ['budget', 'popularity', 'revenue', 'runtime', 'vote_count', 'has_homepage', 'release_year', 'release_month', 'movie_age', 'genre_count', 'keyword_count', 'company_count', 'country_count', 'spoken_language_count', 'crew_count', 'director_movie_count', 'cast_count', 'main_actor_movie_count', 'has_budget', 'has_revenue', 'profit', 'profit_ratio', 'log_budget', 'log_revenue', 'original_language_ar', 'original_language_cn', 'original_language_cs', 'original_language_da', 'original_language_de', 'original_language_el', 'original_language_en', 'original_language_es', 'original_language_fa', 'original_language_fr', 'original_language_he', 'original_language_hi', 'original_language_hu', 'original_language_id', 'original_language_is', 'original_language_it', 'original_language_ja', 'original_language_ko', 'original_language_ky', 'original_language_nb', 'original_language_nl', 'original_language_no', 'original_language_pl', 'original_language_ps', 'original_language_pt', 'original_language_ro', 'original_language_ru', 'original_language_sl', 'original_language_sv', 'original_language_ta', 'original_language_te', 'original_language_th', 'original_language_tr', 'original_language_vi', 'original_language_xx', 'original_language_zh', 'release_season_spring', 'release_season_summer', 'release_season_winter', 'main_genre_Adventure', 'main_genre_Animation', 'main_genre_Comedy', 'main_genre_Crime', 'main_genre_Documentary', 'main_genre_Drama', 'main_genre_Family', 'main_genre_Fantasy', 'main_genre_Foreign', 'main_genre_History', 'main_genre_Horror', 'main_genre_Music', 'main_genre_Mystery', 'main_genre_Romance', 'main_genre_Science Fiction', 'main_genre_TV Movie', 'main_genre_Thriller', 'main_genre_Unknown', 'main_genre_War', 'main_genre_Western', 'is_highly_rated'], 'dtypes': {'budget': 'int64', 'popularity': 'float64', 'revenue': 'int64', 'runtime': 'float64', 'vote_count': 'int64', 'has_homepage': 'int64', 'release_year': 'float64', 'release_month': 'float64', 'movie_age': 'float64', 'genre_count': 'int64', 'keyword_count': 'int64', 'company_count': 'int64', 'country_count': 'int64', 'spoken_language_count': 'int64', 'crew_count': 'int64', 'director_movie_count': 'int64', 'cast_count': 'int64', 'main_actor_movie_count': 'int64', 'has_budget': 'int64', 'has_revenue': 'int64', 'profit': 'int64', 'profit_ratio': 'float64', 'log_budget': 'float64', 'log_revenue': 'float64', 'original_language_ar': 'bool', 'original_language_cn': 'bool', 'original_language_cs': 'bool', 'original_language_da': 'bool', 'original_language_de': 'bool', 'original_language_el': 'bool', 'original_language_en': 'bool', 'original_language_es': 'bool', 'original_language_fa': 'bool', 'original_language_fr': 'bool', 'original_language_he': 'bool', 'original_language_hi': 'bool', 'original_language_hu': 'bool', 'original_language_id': 'bool', 'original_language_is': 'bool', 'original_language_it': 'bool', 'original_language_ja': 'bool', 'original_language_ko': 'bool', 'original_language_ky': 'bool', 'original_language_nb': 'bool', 'original_language_nl': 'bool', 'original_language_no': 'bool', 'original_language_pl': 'bool', 'original_language_ps': 'bool', 'original_language_pt': 'bool', 'original_language_ro': 'bool', 'original_language_ru': 'bool', 'original_language_sl': 'bool', 'original_language_sv': 'bool', 'original_language_ta': 'bool', 'original_language_te': 'bool', 'original_language_th': 'bool', 'original_language_tr': 'bool', 'original_language_vi': 'bool', 'original_language_xx': 'bool', 'original_language_zh': 'bool', 'release_season_spring': 'bool', 'release_season_summer': 'bool', 'release_season_winter': 'bool', 'main_genre_Adventure': 'bool', 'main_genre_Animation': 'bool', 'main_genre_Comedy': 'bool', 'main_genre_Crime': 'bool', 'main_genre_Documentary': 'bool', 'main_genre_Drama': 'bool', 'main_genre_Family': 'bool', 'main_genre_Fantasy': 'bool', 'main_genre_Foreign': 'bool', 'main_genre_History': 'bool', 'main_genre_Horror': 'bool', 'main_genre_Music': 'bool', 'main_genre_Mystery': 'bool', 'main_genre_Romance': 'bool', 'main_genre_Science Fiction': 'bool', 'main_genre_TV Movie': 'bool', 'main_genre_Thriller': 'bool', 'main_genre_Unknown': 'bool', 'main_genre_War': 'bool', 'main_genre_Western': 'bool', 'is_highly_rated': 'int64'}, 'null_counts': {'budget': 0, 'popularity': 0, 'revenue': 0, 'runtime': 0, 'vote_count': 0, 'has_homepage': 0, 'release_year': 0, 'release_month': 0, 'movie_age': 0, 'genre_count': 0, 'keyword_count': 0, 'company_count': 0, 'country_count': 0, 'spoken_language_count': 0, 'crew_count': 0, 'director_movie_count': 0, 'cast_count': 0, 'main_actor_movie_count': 0, 'has_budget': 0, 'has_revenue': 0, 'profit': 0, 'profit_ratio': 0, 'log_budget': 0, 'log_revenue': 0, 'original_language_ar': 0, 'original_language_cn': 0, 'original_language_cs': 0, 'original_language_da': 0, 'original_language_de': 0, 'original_language_el': 0, 'original_language_en': 0, 'original_language_es': 0, 'original_language_fa': 0, 'original_language_fr': 0, 'original_language_he': 0, 'original_language_hi': 0, 'original_language_hu': 0, 'original_language_id': 0, 'original_language_is': 0, 'original_language_it': 0, 'original_language_ja': 0, 'original_language_ko': 0, 'original_language_ky': 0, 'original_language_nb': 0, 'original_language_nl': 0, 'original_language_no': 0, 'original_language_pl': 0, 'original_language_ps': 0, 'original_language_pt': 0, 'original_language_ro': 0, 'original_language_ru': 0, 'original_language_sl': 0, 'original_language_sv': 0, 'original_language_ta': 0, 'original_language_te': 0, 'original_language_th': 0, 'original_language_tr': 0, 'original_language_vi': 0, 'original_language_xx': 0, 'original_language_zh': 0, 'release_season_spring': 0, 'release_season_summer': 0, 'release_season_winter': 0, 'main_genre_Adventure': 0, 'main_genre_Animation': 0, 'main_genre_Comedy': 0, 'main_genre_Crime': 0, 'main_genre_Documentary': 0, 'main_genre_Drama': 0, 'main_genre_Family': 0, 'main_genre_Fantasy': 0, 'main_genre_Foreign': 0, 'main_genre_History': 0, 'main_genre_Horror': 0, 'main_genre_Music': 0, 'main_genre_Mystery': 0, 'main_genre_Romance': 0, 'main_genre_Science Fiction': 0, 'main_genre_TV Movie': 0, 'main_genre_Thriller': 0, 'main_genre_Unknown': 0, 'main_genre_War': 0, 'main_genre_Western': 0, 'is_highly_rated': 0}, 'null_percentages': {'budget': 0.0, 'popularity': 0.0, 'revenue': 0.0, 'runtime': 0.0, 'vote_count': 0.0, 'has_homepage': 0.0, 'release_year': 0.0, 'release_month': 0.0, 'movie_age': 0.0, 'genre_count': 0.0, 'keyword_count': 0.0, 'company_count': 0.0, 'country_count': 0.0, 'spoken_language_count': 0.0, 'crew_count': 0.0, 'director_movie_count': 0.0, 'cast_count': 0.0, 'main_actor_movie_count': 0.0, 'has_budget': 0.0, 'has_revenue': 0.0, 'profit': 0.0, 'profit_ratio': 0.0, 'log_budget': 0.0, 'log_revenue': 0.0, 'original_language_ar': 0.0, 'original_language_cn': 0.0, 'original_language_cs': 0.0, 'original_language_da': 0.0, 'original_language_de': 0.0, 'original_language_el': 0.0, 'original_language_en': 0.0, 'original_language_es': 0.0, 'original_language_fa': 0.0, 'original_language_fr': 0.0, 'original_language_he': 0.0, 'original_language_hi': 0.0, 'original_language_hu': 0.0, 'original_language_id': 0.0, 'original_language_is': 0.0, 'original_language_it': 0.0, 'original_language_ja': 0.0, 'original_language_ko': 0.0, 'original_language_ky': 0.0, 'original_language_nb': 0.0, 'original_language_nl': 0.0, 'original_language_no': 0.0, 'original_language_pl': 0.0, 'original_language_ps': 0.0, 'original_language_pt': 0.0, 'original_language_ro': 0.0, 'original_language_ru': 0.0, 'original_language_sl': 0.0, 'original_language_sv': 0.0, 'original_language_ta': 0.0, 'original_language_te': 0.0, 'original_language_th': 0.0, 'original_language_tr': 0.0, 'original_language_vi': 0.0, 'original_language_xx': 0.0, 'original_language_zh': 0.0, 'release_season_spring': 0.0, 'release_season_summer': 0.0, 'release_season_winter': 0.0, 'main_genre_Adventure': 0.0, 'main_genre_Animation': 0.0, 'main_genre_Comedy': 0.0, 'main_genre_Crime': 0.0, 'main_genre_Documentary': 0.0, 'main_genre_Drama': 0.0, 'main_genre_Family': 0.0, 'main_genre_Fantasy': 0.0, 'main_genre_Foreign': 0.0, 'main_genre_History': 0.0, 'main_genre_Horror': 0.0, 'main_genre_Music': 0.0, 'main_genre_Mystery': 0.0, 'main_genre_Romance': 0.0, 'main_genre_Science Fiction': 0.0, 'main_genre_TV Movie': 0.0, 'main_genre_Thriller': 0.0, 'main_genre_Unknown': 0.0, 'main_genre_War': 0.0, 'main_genre_Western': 0.0, 'is_highly_rated': 0.0}, 'unique_counts': {'budget': 436, 'popularity': 4802, 'revenue': 3297, 'runtime': 156, 'vote_count': 1609, 'has_homepage': 2, 'release_year': 90, 'release_month': 12, 'movie_age': 90, 'genre_count': 8, 'keyword_count': 42, 'company_count': 23, 'country_count': 10, 'spoken_language_count': 10, 'crew_count': 171, 'director_movie_count': 20, 'cast_count': 134, 'main_actor_movie_count': 29, 'has_budget': 2, 'has_revenue': 2, 'profit': 3474, 'profit_ratio': 3206, 'log_budget': 436, 'log_revenue': 3297, 'original_language_ar': 2, 'original_language_cn': 2, 'original_language_cs': 2, 'original_language_da': 2, 'original_language_de': 2, 'original_language_el': 2, 'original_language_en': 2, 'original_language_es': 2, 'original_language_fa': 2, 'original_language_fr': 2, 'original_language_he': 2, 'original_language_hi': 2, 'original_language_hu': 2, 'original_language_id': 2, 'original_language_is': 2, 'original_language_it': 2, 'original_language_ja': 2, 'original_language_ko': 2, 'original_language_ky': 2, 'original_language_nb': 2, 'original_language_nl': 2, 'original_language_no': 2, 'original_language_pl': 2, 'original_language_ps': 2, 'original_language_pt': 2, 'original_language_ro': 2, 'original_language_ru': 2, 'original_language_sl': 2, 'original_language_sv': 2, 'original_language_ta': 2, 'original_language_te': 2, 'original_language_th': 2, 'original_language_tr': 2, 'original_language_vi': 2, 'original_language_xx': 2, 'original_language_zh': 2, 'release_season_spring': 2, 'release_season_summer': 2, 'release_season_winter': 2, 'main_genre_Adventure': 2, 'main_genre_Animation': 2, 'main_genre_Comedy': 2, 'main_genre_Crime': 2, 'main_genre_Documentary': 2, 'main_genre_Drama': 2, 'main_genre_Family': 2, 'main_genre_Fantasy': 2, 'main_genre_Foreign': 2, 'main_genre_History': 2, 'main_genre_Horror': 2, 'main_genre_Music': 2, 'main_genre_Mystery': 2, 'main_genre_Romance': 2, 'main_genre_Science Fiction': 2, 'main_genre_TV Movie': 2, 'main_genre_Thriller': 2, 'main_genre_Unknown': 2, 'main_genre_War': 2, 'main_genre_Western': 2, 'is_highly_rated': 2}}
+{
+  "shape": [
+    4803,
+    27
+  ],
+  "columns": [
+    "vote_count",
+    "popularity",
+    "runtime",
+    "log_popularity",
+    "release_year",
+    "profit",
+    "cast_count",
+    "keyword_count",
+    "director_movie_count",
+    "crew_count",
+    "log_revenue",
+    "log_runtime",
+    "has_homepage",
+    "profit_ratio",
+    "has_budget",
+    "spoken_language_count",
+    "release_month",
+    "genre_count",
+    "company_count",
+    "main_actor_movie_count",
+    "country_count",
+    "has_overview",
+    "has_runtime",
+    "has_release_date",
+    "has_tagline",
+    "budget",
+    "is_highly_rated"
+  ],
+  "dtypes": {
+    "vote_count": "int64",
+    "popularity": "float64",
+    "runtime": "float64",
+    "log_popularity": "float64",
+    "release_year": "int32",
+    "profit": "int64",
+    "cast_count": "int64",
+    "keyword_count": "int64",
+    "director_movie_count": "int64",
+    "crew_count": "int64",
+    "log_revenue": "float64",
+    "log_runtime": "float64",
+    "has_homepage": "int64",
+    "profit_ratio": "float64",
+    "has_budget": "int64",
+    "spoken_language_count": "int64",
+    "release_month": "int32",
+    "genre_count": "int64",
+    "company_count": "int64",
+    "main_actor_movie_count": "int64",
+    "country_count": "int64",
+    "has_overview": "int64",
+    "has_runtime": "int64",
+    "has_release_date": "int64",
+    "has_tagline": "int64",
+    "budget": "int64",
+    "is_highly_rated": "int64"
+  },
+  "null_counts": {
+    "vote_count": 0,
+    "popularity": 0,
+    "runtime": 0,
+    "log_popularity": 0,
+    "release_year": 0,
+    "profit": 0,
+    "cast_count": 0,
+    "keyword_count": 0,
+    "director_movie_count": 0,
+    "crew_count": 0,
+    "log_revenue": 0,
+    "log_runtime": 0,
+    "has_homepage": 0,
+    "profit_ratio": 0,
+    "has_budget": 0,
+    "spoken_language_count": 0,
+    "release_month": 0,
+    "genre_count": 0,
+    "company_count": 0,
+    "main_actor_movie_count": 0,
+    "country_count": 0,
+    "has_overview": 0,
+    "has_runtime": 0,
+    "has_release_date": 0,
+    "has_tagline": 0,
+    "budget": 0,
+    "is_highly_rated": 0
+  },
+  "null_percentages": {
+    "vote_count": 0.0,
+    "popularity": 0.0,
+    "runtime": 0.0,
+    "log_popularity": 0.0,
+    "release_year": 0.0,
+    "profit": 0.0,
+    "cast_count": 0.0,
+    "keyword_count": 0.0,
+    "director_movie_count": 0.0,
+    "crew_count": 0.0,
+    "log_revenue": 0.0,
+    "log_runtime": 0.0,
+    "has_homepage": 0.0,
+    "profit_ratio": 0.0,
+    "has_budget": 0.0,
+    "spoken_language_count": 0.0,
+    "release_month": 0.0,
+    "genre_count": 0.0,
+    "company_count": 0.0,
+    "main_actor_movie_count": 0.0,
+    "country_count": 0.0,
+    "has_overview": 0.0,
+    "has_runtime": 0.0,
+    "has_release_date": 0.0,
+    "has_tagline": 0.0,
+    "budget": 0.0,
+    "is_highly_rated": 0.0
+  },
+  "unique_counts": {
+    "vote_count": 1609,
+    "popularity": 4802,
+    "runtime": 156,
+    "log_popularity": 4802,
+    "release_year": 90,
+    "profit": 3474,
+    "cast_count": 134,
+    "keyword_count": 42,
+    "director_movie_count": 20,
+    "crew_count": 171,
+    "log_revenue": 3297,
+    "log_runtime": 156,
+    "has_homepage": 2,
+    "profit_ratio": 3206,
+    "has_budget": 2,
+    "spoken_language_count": 10,
+    "release_month": 12,
+    "genre_count": 8,
+    "company_count": 23,
+    "main_actor_movie_count": 29,
+    "country_count": 10,
+    "has_overview": 2,
+    "has_runtime": 2,
+    "has_release_date": 2,
+    "has_tagline": 2,
+    "budget": 436,
+    "is_highly_rated": 2
+  }
+}
 
-Output shape: (4803, 84)
+Output shape: (4803, 27)
 Saved engineered data to outputs/engineered_data.csv
